@@ -1,0 +1,14 @@
+# ignore all .csv files in the ingested directory and any of its subdirectories
+data/ingested/**/*.csv
+
+# ignore all .csv files in the landed directory and any of its subdirectories
+data/landed/**/*.csv
+
+# ignore all .csv files in the landed directory and any of its subdirectories
+data/raw/**/*.csv
+
+# ignore all files in the landed directory and any of its subdirectories
+data/saved_graphs/
+
+# ignore all files in the saved models directory and any of its subdirectories
+saved_models/
