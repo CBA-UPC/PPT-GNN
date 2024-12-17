@@ -20,63 +20,7 @@ class SAGE(torch.nn.Module):
             x_dict = {key: F.leaky_relu(x) for key, x in x_dict.items()}
         return x_dict
     
-class LSTMConv(MessagePassing):
-    def __init__(self, in_size, out_size):
-        super().__init__(aggr=LSTMAggregation(in_size, out_size), flow="source_to_target")
-
-    def forward(self, x, edge_index):
-        out = self.propagate(edge_index, x=x)
-        return out
-
-    def message(self, x_j):
-        return x_j
-    
-class GRUConv(MessagePassing):
-    def __init__(self, in_size, out_size):
-        super().__init__(aggr=GRUAggregation(in_size, out_size), flow="source_to_target")
-
-    def forward(self, x, edge_index):
-        out = self.propagate(edge_index, x=x)
-        return out
-
-    def message(self, x_j):
-        return x_j
-    
-class TemporalPlusConv(torch.nn.Module):
-    def __init__(self, metadata, hidden_channels, num_layers): # temporal_aggregation can be 'lstm' or 'gru'
-        super().__init__()
-        
-        # Get the spatial and temporal edge types
-        self.spatial_edge_types = metadata[1][:-3]
-        self.temporal_edge_types = metadata[1][-3:]
-
-        # Assert that last edge type is the temporal one (assuming nomeclature from graph builder is consistent)
-        assert self.temporal_edge_types == [('ip', 'temporal_connection', 'ip'), ('con', 'temporal_connection_same_src_ip', 'con'),('con', 'temporal_connection_same_dst_ip', 'con')]
-
-        self.convs = torch.nn.ModuleList()
-
-        for _ in range(num_layers):
-            # First step. Apply temporal convolutions (to preserve temporal information)
-            temporal_conv = HeteroConv({
-            edge_type: SAGEConv((-1, -1), hidden_channels, normalize=True)
-                for edge_type in self.temporal_edge_types
-            })
-            self.convs.append(temporal_conv)
-
-            # Second step. Apply spatial convolutions
-            spatial_conv = HeteroConv({
-            edge_type: SAGEConv((-1, -1), hidden_channels, normalize=True)
-                for edge_type in self.spatial_edge_types
-            })
-            self.convs.append(spatial_conv)
-            
-    def forward(self, x_dict, edge_index_dict):
-        for conv in self.convs:
-            x_dict = conv(x_dict, edge_index_dict)
-            x_dict = {key: F.leaky_relu(x) for key, x in x_dict.items()}
-        return x_dict
-    
-class TemporalPlusConv_v2(torch.nn.Module):
+class TemporalSAGE(torch.nn.Module):
     def __init__(self, metadata, hidden_channels, num_layers): 
         super().__init__()
         
@@ -108,46 +52,6 @@ class TemporalPlusConv_v2(torch.nn.Module):
         for conv in self.convs:
             x_dict = conv(x_dict, edge_index_dict)
             x_dict = {key: F.leaky_relu(x) for key, x in x_dict.items()}
-        return x_dict
-
-
-class TemporalSageConv(torch.nn.Module):
-    def __init__(self, metadata, hidden_channels, num_layers, temporal_aggregation='lstm'): # temporal_aggregation can be 'lstm' or 'gru'
-        super().__init__()
-        
-        # Get the spatial and temporal edge types
-        self.spatial_edge_types = metadata[1][:-1]
-        self.temporal_edge_type = metadata[1][-1]
-
-        # Assert that last edge type is the temporal one (assuming nomeclature from graph builder is consistent)
-        assert self.temporal_edge_type == ('ip', 'temporal_connection', 'ip')
-
-        self.spatial_layers = torch.nn.ModuleList()
-        self.temporal_layers = torch.nn.ModuleList()
-
-        for _ in range(num_layers):
-            spatial_conv = HeteroConv({
-            edge_type: SAGEConv((-1, -1), hidden_channels, normalize=True)
-                for edge_type in self.spatial_edge_types
-            })
-            if temporal_aggregation == 'lstm':
-                temporal_lstm = LSTMConv(hidden_channels, hidden_channels)
-            elif temporal_aggregation == 'gru':
-                temporal_lstm = GRUConv(hidden_channels, hidden_channels)
-            else:
-                raise ValueError(f'Temporal aggregation method {temporal_aggregation} not recognized')
-            self.spatial_layers.append(spatial_conv)
-            self.temporal_layers.append(temporal_lstm)
-        
-    def forward(self, x_dict, edge_index_dict):
-        edge_index_dict_spatial = {i:edge_index_dict[i] for i in edge_index_dict if i!=self.temporal_edge_type}
-        edge_index_dict_temporal = edge_index_dict[self.temporal_edge_type]
-
-        for idx, spatial_conv in enumerate(self.spatial_layers):
-            x_dict = spatial_conv(x_dict, edge_index_dict_spatial)
-            x_dict['ip'] = self.temporal_layers[idx](x_dict['ip'], edge_index_dict_temporal)
-            x_dict = {key: F.leaky_relu(x) for key, x in x_dict.items()}
-
         return x_dict
     
 class LinkClassifier(torch.nn.Module):
