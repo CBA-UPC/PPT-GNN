@@ -14,7 +14,7 @@ A Graph Neural Network (GNN)-based Network Intrusion Detection (NIDS) Model that
 Code repository of paper currently under review but available in ArXiv: https://arxiv.org/pdf/2406.13365
 
 ## How To Run
-1. Extract (in-place): **data/raw/raw_datasets.zip**
+1. Download raw datasets via https://repository.cba.upc.edu/Graphs4Sec/PPT-GNN/dataset.zip and save dataset files in: **data/raw/**
 2. Run only cell in notebook: **ingest_data.ipynb**
 3. For pretraining open notebook: **pretraining.ipynb**
    
